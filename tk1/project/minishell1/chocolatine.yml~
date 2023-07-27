@@ -1,0 +1,125 @@
+name: chocolatine
+on:
+  push:
+    branches-ignore:
+    - 'ga-ignore-'
+  pull_request:
+    branches-ignore:
+    - 'ga-ignore-'
+
+env:
+   EXECUTABLES: "antman/antman,giantman/giantman"
+   MIRROR_URL: MY_REPO_URL
+
+jobs:
+  check_repository_cleanliness:
+    runs-on:  ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3.0.0
+      - name: "#*#"
+        run: |
+            FILE2=$(find . -name "#*#")
+            if [[ -n "$FILE2" ]]; then
+            echo "::error file=$FILE2,line=1,col=5,endColumn=7::$FILE2"
+            fi
+      - name: "*~"
+        run: |
+            FILE2=$(find . -name "*~")
+            if [[ -n "$FILE2" ]]; then
+            echo "::error file=$FILE2,line=1,col=5,endColumn=7::$FILE2"
+            fi
+      - name: "*pain_au_chocolat*"
+        run: |
+            FILE2=$(find . -name "*pain_au_chocolat*")
+            if [[ -n "$FILE2" ]]; then
+            echo "::error file=$FILE2,line=1,col=5,endColumn=7::$FILE2"
+            fi
+      - name: "*.o"
+        run: |
+            FILE2=$(find . -name "*.o")
+            if [[ -n "$FILE2" ]]; then
+            echo "::error file=$FILE2,line=1,col=5,endColumn=7::$FILE2"
+            fi
+      - name: "*.a"
+        run: |
+            FILE2=$(find . -name "*.a")
+            if [[ -n "$FILE2" ]]; then
+            echo "::error file=$FILE2,line=1,col=5,endColumn=7::$FILE2"
+            fi
+      - name: "*.so"
+        run: |
+            FILE2=$(find . -name "*.so")
+            if [[ -n "$FILE2" ]]; then
+            echo "::error file=$FILE2,line=1,col=5,endColumn=7::$FILE2"
+            fi
+      - name: "*.gcno"
+        run: |
+            FILE2=$(find . -name "*.gcno")
+            if [[ -n "$FILE2" ]]; then
+            echo "::error file=$FILE2,line=1,col=5,endColumn=7::$FILE2"
+            fi
+      - name: "*.gcda"
+        run: |
+            FILE2=$(find . -name "*.gcda")
+            if [[ -n "$FILE2" ]]; then
+            echo "::error file=$FILE2,line=1,col=5,endColumn=7::$FILE2"
+            fi
+      - name: "*.gcov"
+        run: |
+            FILE2=$(find . -name "*.gcov")
+            if [[ -n "$FILE2" ]]; then
+            echo "::error file=$FILE2,line=1,col=5,endColumn=7::$FILE2"
+            fi
+
+  check_program_compilation:
+    needs: check_repository_cleanliness
+    runs-on:  ubuntu-latest
+    container:
+        image: epitechcontent/epitest-docker:latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3.0.0
+      - name: make
+        timeout-minutes: 2
+        run: make
+      - name: clean
+        run: make clean  
+      - name: Check file existence
+        id: check_files
+        uses: andstor/file-existence-action@v1
+        with:
+          files:  ${{ env.EXECUTABLES }}
+      - name: File Exec
+        if: steps.check_files.outputs.files_exists == 'true'
+        run: |
+            IFS="," read -a files <<< ${{ env.EXECUTABLES }}
+            for i in "${files[@]}"; do
+                [ -f "${i}" ] && [ -r "${i}" ] && [ -x "${i}" ]
+            done
+
+  run_tests:
+    needs: check_program_compilation
+    runs-on:  ubuntu-latest
+    container:
+      image: epitechcontent/epitest-docker:latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3.0.0
+      - name: tests
+        timeout-minutes: 2
+        run: make tests_run
+
+  push_to_mirror:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: pixta-dev/repository-mirroring-action@v1
+        with:
+          target_repo_url:
+            ${{ env.MIRROR_URL }}
+          ssh_private_key:
+            ${{ secrets.GIT_SSH_PRIVATE_KEY }}

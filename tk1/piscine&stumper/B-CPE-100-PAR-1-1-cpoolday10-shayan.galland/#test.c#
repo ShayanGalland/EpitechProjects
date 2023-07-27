@@ -1,0 +1,13 @@
+/*
+** EPITECH PROJECT, 2021
+** test
+** File description:
+** y
+*/
+
+#include "my.h"
+
+int main(void)
+{
+    printf("%d\n",MY_H_());
+}

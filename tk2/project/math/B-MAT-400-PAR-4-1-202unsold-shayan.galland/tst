@@ -1,0 +1,43 @@
+def calculate_ex_x(x):
+    ex_x = 0
+    for i in range(5):
+        ex_x += (i+1)*10 * x[i]
+    return ex_x
+
+def calculate_va_x(x):
+    ex_x = calculate_ex_x(x)
+    va_x = 0
+    for i in range(5):
+        va_x += ((i+1)*10 - ex_x)**2 * x[i]
+    return va_x
+
+def calculate_ex_y(y):
+    ex_y = 0
+    for j in range(5):
+        ex_y += (j+1)*10 * y[j]
+    return ex_y
+
+def calculate_va_y(y):
+    ex_y = calculate_ex_y(y)
+    va_y = 0
+    for j in range(5):
+        va_y += ((j+1)*10 - ex_y)**2 * y[j]
+    return va_y
+
+def calculate_ex_z(joint):
+    ex_z = 0
+    for i in range(5):
+        for j in range(5):
+            if (i+1)*10 + (j+1)*10 >= 20 and (i+1)*10 + (j+1)*10 <= 100:
+                ex_z += ((i+1)*10 + (j+1)*10) * joint[i][j]
+    return ex_z
+
+def calculate_va_z(joint):
+    ex_z = calculate_ex_z(joint)
+    va_z = 0
+    for i in range(5):
+        for j in range(5):
+            if (i+1)*10 + (j+1)*10 >= 20 and (i+1)*10 + (j+1)*10 <= 100:
+                z = (i+1)*10 + (j+1)*10
+                va_z += (z - ex_z)**2 * joint[i][j]
+    return va_z

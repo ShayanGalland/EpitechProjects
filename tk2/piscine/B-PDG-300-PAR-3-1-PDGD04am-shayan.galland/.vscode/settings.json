@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "functions.h": "c",
+        "concat.h": "c"
+    }
+}

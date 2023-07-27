@@ -1,0 +1,274 @@
+#!/usr/bin/python3
+import numpy as np
+import sys
+# Import math Library
+import math
+
+
+argc = len(sys.argv)
+argv = sys.argv
+
+def param():
+    if argc == 1:
+        error()
+    if argc == 2:
+        if argv[1] == "-h":
+            help()
+    if argc != 7:
+        error()
+
+def error():
+    print("ERROR bad parameters")
+    exit(84)
+
+def help():
+    print("USAGE")
+    print("\t./201yams d1 d2 d3 d4 d5 c")
+    print("")
+    print("DESCRIPTION")
+    print("\td1\tvalue of the first die (0 if not thrown)")
+    print("\td2\tvalue of the second die (0 if not thrown)")
+    print("\td3\tvalue of the third die (0 if not thrown)")
+    print("\td4\tvalue of the fourth die (0 if not thrown)")
+    print("\td5\tvalue of the fifth die (0 if not thrown)")
+    print("\tc\texpected combination")
+    exit(0)
+
+def fil_dices():
+    try:
+        pos = [int(argv[1]), int(argv[2]), int(argv[3]), int(argv[4]), int(argv[5])]
+    except ValueError:
+        error()
+    for i in range(5):
+        if int(argv[1 + i]) > 6 or int(argv[1 + i]) < 0:
+            error()
+    return pos
+
+
+def binom(k, j):
+    res = math.comb(k, j) * (1/6)**j * (5/6)**(k - j)
+    return res
+
+def same(k, j):
+    res = 0
+    for i in range(j, k + 1):
+        res += binom(k, i)
+    return res
+
+def straight(dices):
+    if len(argv[6]) != 10:
+        error()
+    try:
+        num = int(argv[6][9])
+    except ValueError:
+        error()
+    else:
+        num = int(argv[6][9])
+    if num > 6 or num == 0:
+        error()
+    #implementation:
+    if num < 5:
+        error()
+    cnt_dif_m5 = 0
+    cnt_dif_6 = 0
+    idx = 0
+    for idx in range(num):
+        for i in range(5):
+            if dices[i] == (num - idx):
+                cnt_dif_m5 = cnt_dif_m5 + 1
+                break
+    idx = idx + 1
+    idx = 0
+    for idx in range(num):
+        for i in range(5):
+            if dices[i] == (6 - idx + 1):
+                cnt_dif_6 = cnt_dif_6 + 1
+                break
+
+    if num <= 5 and cnt_dif_m5 == 5 or num == 6 and cnt_dif_6 == 5:
+        print("Chances to get a {0} straight: 100.00%".format(num))
+        exit(0)
+#
+    ##cnt_dif : nb of dices different pertinent
+    if num <= 5:
+        if cnt_dif_m5 == 0:
+            chance = binom(5, 5)
+        if cnt_dif_m5 == 1:
+            chance = binom(4, 4)
+        if cnt_dif_m5 == 2:
+            chance = binom(3, 3)
+        if cnt_dif_m5 == 3:
+            chance = binom(2, 2)
+        if cnt_dif_m5 == 4:
+            chance = binom(1, 1)
+    if num == 6:
+        if cnt_dif_6 == 0:
+            chance = binom(5, 5)
+        if cnt_dif_6 == 1:
+            chance = binom(4, 4)
+        if cnt_dif_6 == 2:
+            chance = binom(3, 3)
+        if cnt_dif_6 == 3:
+            chance = binom(2, 2)
+        if cnt_dif_6 == 4:
+            chance = binom(1, 1)
+
+    print("Chances to get a {0} straight: {1:.2f}%".format(num, chance * 100))
+
+
+def yams(dices):
+    if len(argv[6]) != 6:
+        error()
+    try:
+        num = int(argv[6][5])
+    except ValueError:
+        error()
+    else:
+        num = int(argv[6][5])
+    if num == 0:
+        error()
+    if num > 6 or num == 0:
+        error()
+    #implementation
+    cnt_similar = 0
+    for i in range(5):
+        if dices[i] == num:
+            cnt_similar = cnt_similar + 1
+    if cnt_similar == 5:
+        print("Chances to get a {0} yams: 100%".format(num))
+        exit(0)
+    chance = 1 / 6
+    for i in range(5 - cnt_similar - 1):
+        chance *= 1 / 6
+
+    print("Chances to get a {0} yams: {1:.2f}%".format(num, chance * 100))
+
+def pair(dices):
+    if len(argv[6]) != 6:
+        error()
+    try:
+        num = int(argv[6][5])
+    except ValueError:
+        error()
+    else:
+        num = int(argv[6][5])
+    if num > 6 or num == 0:
+        error()
+    #implementation
+    cnt_similar = 0
+    for i in range(5):
+        if dices[i] == num:
+            cnt_similar = cnt_similar + 1
+    if cnt_similar == 0:
+        chance = same(5, 2)
+    elif cnt_similar == 1:
+        chance = same(4, 1)
+    else:
+        print("Chances to get a {0} pair: 100.00%".format(num))
+        exit(0)
+
+    print("Chances to get a {0} pair: {1:.2f}%".format(num, chance * 100))
+
+def three(dices):
+    if len(argv[6]) != 7:
+        error()
+    try:
+        num = int(argv[6][6])
+    except ValueError:
+        error()
+    else:
+        num = int(argv[6][6])
+    if num > 6 or num == 0:
+        error()
+    #implementation
+    cnt_similar = 0
+    for i in range(5):
+        if dices[i] == num:
+            cnt_similar = cnt_similar + 1
+    chance = 0
+    if cnt_similar == 0:
+        chance = same(5, 3)
+    elif cnt_similar == 1:
+        chance = same(4, 2)
+    elif cnt_similar == 2:
+        chance = same(3, 1)
+    else:
+        print("Chances to get a {0} three-of-a-kind: 100.00%".format(num))
+        exit(0)
+
+    print("Chances to get a {0} three-of-a-kind: {1:.2f}%".format(num, chance * 100))
+
+def four(dices):
+    if len(argv[6]) != 6:
+        error()
+    try:
+        num = int(argv[6][5])
+    except ValueError:
+        error()
+    else:
+        num = int(argv[6][5])
+    if num > 6 or num == 0:
+        error()
+    #implementation
+    cnt_similar = 0
+    for i in range(5):
+        if dices[i] == num:
+            cnt_similar = cnt_similar + 1
+    chance = 0
+    if cnt_similar == 0:
+        chance = same(5, 4)
+    elif cnt_similar == 1:
+        chance = same(4, 3)
+    elif cnt_similar == 2:
+        chance = same(3, 2)
+    elif cnt_similar == 3:
+        chance = same(2, 1)
+    else:
+        print("Chances to get a {0} four-of-a-kind: 100.00%".format(num))
+        exit(0)
+
+    print("Chances to get a {0} four-of-a-kind: {1:.2f}%".format(num, chance * 100))
+
+def full(dices):
+    if len(argv[6]) != 8:
+        error()
+    try:
+        num2 = int(argv[6][5])
+        num1 = int(argv[6][7])
+    except ValueError:
+        error()
+    else:
+        num2 = int(argv[6][5])
+        num1 = int(argv[6][7])
+    if num1 > 6 or num2 > 6 or num1 == num2 or num1 == 0 or num2 == 0:
+        error()
+
+    print("Chances to get a {0} full of {1}: 100.00%".format(num2, num1))
+
+
+def yam_mode():
+    dices = fil_dices()
+    if argv[6].find("straight") >= 0:
+        straight(dices)
+    elif argv[6].find("yams") >= 0:
+        yams(dices)
+    elif argv[6].find("pair") >= 0:
+        pair(dices)
+    elif argv[6].find("three") >= 0:
+        three(dices)
+    elif argv[6].find("four") >= 0:
+        four(dices)
+    elif argv[6].find("full") >= 0:
+        full(dices)
+    else:
+        error()
+
+def main():
+    param()
+    yam_mode()
+    exit(0)
+
+
+
+if __name__ == "__main__":
+    main()

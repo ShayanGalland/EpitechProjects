@@ -1,0 +1,141 @@
+#!/usr/bin/python3
+from sys import argv
+import csv
+
+def usage():
+    print("""USAGE
+        ./109titration fl
+
+    DESCRIPTION
+    fl a csv fl containing “vol;ph” lines""")
+
+def calc_equival_point(data, drv):
+    default = drv[0]
+    result = []
+    result.append(1)
+    result.append(0)
+    for i in range(1, len(data) - 1):
+        if (default < drv[i]):
+            default = drv[i]
+            result[0] = data[i][0]
+            result[1] = i
+    return result
+
+def equivalent_point(drv, fl):
+    equival = calc_equival_point(fl, drv)
+    drv.append(0)
+    return (equival[0])
+
+def read_fl(argv):
+	fl = []
+	try:
+		with open(argv[1]) as csv_fl:
+			csv_data = list(csv.reader(csv_fl, delimiter=';'))
+			try:
+				for i in range(len(csv_data)):
+					fl.append(csv_data[i])
+					fl[i][0] = float(csv_data[i][0])
+					fl[i][1] = float(csv_data[i][1])
+					if not len(fl[i]) == 2:
+						raise IndexError
+			except (ValueError, IndexError):
+				exit(84)
+	except (EnvironmentError) as err:
+		exit(84)
+	if len(fl) <= 4:
+		exit(84)
+	return fl
+
+if __name__ == "__main__":
+    ac = len(argv)
+    if ac == 2:
+        if argv[1] == "-h" or argv[1] == "--help":
+            usage()
+    if (ac != 2):
+        exit(84)
+    fl = read_fl(argv)
+    print("Derivative:")
+    s1 = 0
+    drv = []
+    h1 = 0
+    s2 = 0
+    h2 = 0
+    drv.append(0)
+    for i in range(1, len(fl) - 1):
+        h2 = (fl[i][0] - fl[i - 1][0])
+        if (h2 == 0):
+            exit(84)
+        h1 = (fl[i + 1][0] - fl[i][0])
+        if (h1 == 0):
+            exit(84)
+        if (h1 + h2) == 0:
+            exit(84)
+        s1 = (fl[i + 1][1] - fl[i][1]) / h1
+        s2 = (fl[i][1] - fl[i - 1][1]) / h2
+        drv.append(((s1 * h2) + (s2 * h1)) / (h1 + h2))
+        print("%.1f ml -> %.2f" %(fl[i][0], drv[i]))
+    eq_point = equivalent_point(drv, fl)
+    print("\nEquivalence point at %.1f ml\n" % eq_point)
+    print("Second derivative:")
+    s1 = 0
+    res = 0
+    s2 = 0
+    h1 = 0
+    h2 = 0
+    second_drv = []
+    second_drv.append(0)
+    second_drv.append(0)
+    for i in range(2, len(drv) - 2):
+        h1 = (fl[i + 1][0] - fl[i][0])
+        if (h1 == 0):
+            exit(84)
+        h2 = (fl[i][0] - fl[i - 1][0])
+        if ((h2 == 0)):
+            exit(84)
+        if (h1 + h2) == 0:
+            exit(84)
+        s1 = (drv[i + 1] - drv[i]) / h1
+        s2 = (drv[i] - drv[i - 1]) / h2
+        res = (((s1 * h2) + (s2 * h1)) / (h1 + h2))
+        second_drv.append(res)
+        print("%.1f ml -> %.2f" % (fl[i][0], res))
+    print("\nSecond derivative estimated:")
+    a = 0
+    b = 0
+    i = 2
+    j = 0
+    z = []
+    second_d_e = []
+    while fl[i][0] != eq_point:
+        i = i + 1
+    x = fl[i - 1][0] * 100
+    while (x / 100) <= eq_point:
+        z.append(x / 100)
+        a = (second_drv[i - 1] - second_drv[i]) / (fl[i - 1][0] - fl[i][0])
+        a = a * (x / 100)
+        b = (fl[i - 1][0] * second_drv[i]) - (fl[i][0] * second_drv[i - 1])
+        b = b / (fl[i - 1][0] - fl[i][0])
+        second_d_e.append((a + b))
+        print("%.1f ml -> %.2f" %((x / 100), (a + b)))
+        x = x + 10
+    while ((x / 100) <= fl[i + 1][0]):
+        z.append(x / 100)
+        a = (second_drv[i] - second_drv[i + 1]) / (fl[i][0] - fl[i + 1][0])
+        a = a * (x / 100)
+        b = (fl[i][0] * second_drv[i + 1]) - (fl[i + 1][0] * second_drv[i])
+        b = b / (fl[i][0] - fl[i + 1][0])
+        second_d_e.append((a + b))
+        print("%.1f ml -> %.2f" %((x / 100), (a + b)))
+        x = x + 10
+    i = 1
+    while (i < len(second_d_e)):
+        if (second_d_e[i] < 0):
+            second_d_e[i] = second_d_e[i] * (-1)
+        i = i + 1
+    i = 1
+    while (i < len(second_d_e)):
+        if (second_d_e[i - 1] > second_d_e[i]):
+            eq_point = z[i]
+        i = i + 1
+    print("\nEquivalence point at %.1f ml" %(eq_point))
+    exit(0)

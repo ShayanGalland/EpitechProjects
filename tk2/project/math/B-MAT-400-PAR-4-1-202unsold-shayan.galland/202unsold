@@ -1,0 +1,145 @@
+#!/usr/bin/python3
+import numpy as np
+import sys
+
+argc = len(sys.argv)
+argv = sys.argv
+
+def error():
+    print("ERROR")
+    exit(84)
+
+def error_param():
+    if argc != 3:
+        error()
+    try:
+        int(argv[1])
+        int(argv[2])
+    except ValueError:
+        error()
+    if int(argv[1]) <= 50 or int(argv[2]) <= 50:
+        error()
+
+def probability(x, y, a, b):
+    return (a - x) * (b - y) / ((5 * a - 150) * (5 * b - 150))
+
+def calculate_ex_x(x):
+    ex_x = 0
+    for i in range(5):
+        ex_x += (i+1)*10 * x[i]
+    return ex_x
+
+def calculate_va_x(x):
+    ex_x = calculate_ex_x(x)
+    va_x = 0
+    for i in range(5):
+        va_x += ((i+1)*10 - ex_x)**2 * x[i]
+    return va_x
+
+def calculate_ex_y(y):
+    ex_y = 0
+    for j in range(5):
+        ex_y += (j+1)*10 * y[j]
+    return ex_y
+
+def calculate_va_y(y):
+    ex_y = calculate_ex_y(y)
+    va_y = 0
+    for j in range(5):
+        va_y += ((j+1)*10 - ex_y)**2 * y[j]
+    return va_y
+
+def calculate_ex_z(joint):
+    ex_z = 0
+    for i in range(5):
+        for j in range(5):
+            if (i+1)*10 + (j+1)*10 >= 20 and (i+1)*10 + (j+1)*10 <= 100:
+                ex_z += ((i+1)*10 + (j+1)*10) * joint[i][j]
+    return ex_z
+
+def calculate_va_z(joint):
+    ex_z = calculate_ex_z(joint)
+    va_z = 0
+    for i in range(5):
+        for j in range(5):
+            if (i+1)*10 + (j+1)*10 >= 20 and (i+1)*10 + (j+1)*10 <= 100:
+                z = (i+1)*10 + (j+1)*10
+                va_z += (z - ex_z)**2 * joint[i][j]
+    return va_z
+
+def joints(a, b):
+    joint = np.zeros((5, 5))
+    x = np.zeros(5)
+    y = np.zeros(5)
+
+    for i in range(5):
+        for j in range(5):
+            p = probability((i+1)*10, (j+1)*10, a, b)
+            joint[i][j] = p
+            x[i] += p
+            y[j] += p
+    return joint, x, y
+
+def print_all(a, b):
+    joint, x, y = joints(a, b)
+    print("--------------------------------------------------------------------------------")
+    print("\tX=10\tX=20\tX=30\tX=40\tX=50\tY law")
+    for i in range(5):
+        row = ""
+        for j in range(5):
+            row += f"\t{joint[i][j]:.3f} "
+        row += f"\t{x[i]:.3f}"
+        print(f"Y={10*(i+1):<2} {row}")
+    row = ""
+    for i in range(5):
+        row += f"\t{y[i]:.3f} "
+    row += f"\t1.000"
+    print(f"X law{row}")
+    print("--------------------------------------------------------------------------------")
+    print("z\t20\t30\t40\t50\t60\t70\t80\t90\t100")
+    row = ""
+    row = "p(Z=z)\t"
+    for z in range(20, 101, 10):
+        p = 0
+        for i in range(5):
+            for j in range(5):
+                if (i+1)*10 + (j+1)*10 == z:
+                    p += joint[i][j]
+        row += f"{p:.3f}\t"
+    print(row)
+    print("--------------------------------------------------------------------------------")
+    ex_x = f"expected value of X:\t{calculate_ex_x(y):.1f}"
+    va_x = f"variance of X:      \t{calculate_va_x(y):.1f}"
+    ex_y = f"expected value of Y:\t{calculate_ex_y(x):.1f}"
+    va_y = f"variance of Y:      \t{calculate_va_y(x):.1f}"
+    ex_z = f"expected value of Z:\t{calculate_ex_z(joint):.1f}"
+    va_z = f"variance of Z:      \t{calculate_va_z(joint):.1f}"
+    print(ex_x)
+    print(va_x)
+    print(ex_y)
+    print(va_y)
+    print(ex_z)
+    print(va_z)
+    print("--------------------------------------------------------------------------------")
+
+def help():
+    if argv[1] == "-h" and argc == 2:
+        print("USAGE")
+        print("\t./202unsold a b")
+        print("")
+        print("DESCRIPTION")
+        print("\ta\tconstant computed from past results")
+        print("\tb\tconstant computed from past results")
+        exit(0)
+
+def main():
+    help()
+    error_param()
+    b = int(argv[1])
+    a = int(argv[2])
+    joints(a, b)
+    print_all(a, b)
+    exit(0)
+
+if __name__ == "__main__":
+    main()

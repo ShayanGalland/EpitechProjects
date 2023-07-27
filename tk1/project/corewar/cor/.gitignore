@@ -1,0 +1,9 @@
+libmy.a
+*.o
+*~
+mr_clean
+'#*#'
+vgcore*
+corewar/corewar
+asm/asm
+corewar_binaries

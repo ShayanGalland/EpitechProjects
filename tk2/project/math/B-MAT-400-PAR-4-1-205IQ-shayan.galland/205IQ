@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+import sys
+import math
+
+argc = len(sys.argv)
+argv = sys.argv
+
+def help():
+    if argv[1] == "-h":
+        print("USAGE")
+        print("\t./205IQ u s [IQ1] [IQ2]")
+        print("")
+        print("DESCRIPTION")
+        print("\tu\tmean")
+        print("\ts\tstandard deviation")
+        print("\tIQ1\tminimum IQ")
+        print("\tIQ2\tmaximum IQ")
+        exit(0)
+
+def error():
+    print("ERROR")
+    exit(84)
+
+def density_function(mean, deviation, x):
+    exponent = -((x - mean) ** 2) / (2 * (deviation ** 2))
+    return (1 / (deviation * math.sqrt(2 * math.pi))) * math.exp(exponent)
+
+def cdf(mean, deviation, x):
+    return (1 + math.erf((x - mean) / (deviation * math.sqrt(2)))) / 2
+
+def main():
+    if argc == 2:
+        help()
+    if argc < 3 or argc > 5:
+        error()
+
+    mean = float(argv[1])
+    deviation = float(argv[2])
+
+    if argc == 3:
+        for i in range(201):
+            density = density_function(mean, deviation, i)
+            print(f"{i} {density:.5f}")
+    elif argc == 4:
+        iq = float(argv[3])
+        percentage = cdf(mean, deviation, iq) * 100
+        print(f"{percentage:.1f}% of people have an IQ inferior to {int(iq)}")
+    elif argc == 5:
+        iq1 = float(argv[3])
+        iq2 = float(argv[4])
+        percentage = (cdf(mean, deviation, iq2) - cdf(mean, deviation, iq1)) * 100
+        print(f"{percentage:.1f}% of people have an IQ between {int(iq1)} and {int(iq2)}")
+
+
+if __name__ == "__main__":
+    main()

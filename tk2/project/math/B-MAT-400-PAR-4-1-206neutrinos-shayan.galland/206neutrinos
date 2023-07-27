@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+import sys
+import math
+
+argc = len(sys.argv)
+argv = sys.argv
+
+def help():
+    if argv[1] == "-h":
+        print("USAGE")
+        print("\t./206neutrinos n a h sd")
+        print("")
+        print("DESCRIPTION")
+        print("\tn\tnumber of values")
+        print("\ta\tarithmetic mean")
+        print("\th\tharmonic mean")
+        print("\tsd\tstandard deviation")
+        exit(0)
+
+def error():
+    print("ERROR")
+    exit(84)
+
+def update_stats(n, a, h, sd, value):
+    n += 1
+    a_new = a + (value - a) / n
+    sd_new = math.sqrt((sd**2 * (n - 1) + (value - a) * (value - a_new)) / n)
+    h_new = n / ((n - 1) / h + 1 / value)
+    rms_new = math.sqrt(((n - 1) * a**2 + value**2) / n)
+
+    return n, a_new, h_new, sd_new, rms_new
+
+def main():
+    if argc == 2:
+        help()
+
+    if argc != 5:
+        error()
+
+    try:
+        n = int(argv[1])
+        a = float(argv[2])
+        h = float(argv[3])
+        sd = float(argv[4])
+    except ValueError:
+        error()
+
+    while True:
+        next_value = input("Enter next value: ")
+        if next_value == "END":
+            break
+
+        try:
+            value = float(next_value)
+        except ValueError:
+            error()
+
+        n, a, h, sd, rms = update_stats(n, a, h, sd, value)
+        print(f"    Number of values:   {n}")
+        print(f"    Standard deviation: {sd:.2f}")
+        print(f"    Arithmetic mean:    {a:.2f}")
+        print(f"    Root mean square:   {rms:.2f}")
+        print(f"    Harmonic mean:      {h:.2f}")
+        print("");
+
+    exit(0)
+
+if __name__ == "__main__":
+    main()

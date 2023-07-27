@@ -1,0 +1,29 @@
+{
+    "files.associations": {
+        "my_struct.h": "c",
+        "stdlib.h": "c",
+        "my_defender.h": "c",
+        "states.h": "c",
+        "main_menu_state.h": "c",
+        "graphics.h": "c",
+        "*.tcc": "c",
+        "istream": "c",
+        "ostream": "c",
+        "typeinfo": "c",
+        "functional": "c",
+        "streambuf": "c",
+        "main_setting_state.h": "c",
+        "random": "c",
+        "main_rules_state.h": "c",
+        "ui.h": "c",
+        "array": "c",
+        "deque": "c",
+        "string": "c",
+        "unordered_map": "c",
+        "vector": "c",
+        "string_view": "c",
+        "initializer_list": "c",
+        "my_defender_game.h": "c"
+    },
+    "C_Cpp.dimInactiveRegions": false
+}

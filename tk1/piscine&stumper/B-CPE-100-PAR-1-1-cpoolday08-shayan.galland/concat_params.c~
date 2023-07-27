@@ -1,0 +1,49 @@
+/*
+** EPITECH PROJECT, 2021
+** concat_params
+** File description:
+** y
+*/
+
+#include <unistd.h>
+#include <stdlib.h>
+
+void  my_putchar(char c)
+{
+    write(1 ,&c ,1)
+}
+
+void my_putstr(char *src)
+{
+    int i;
+
+    i = 0;
+    while(src[i] != '\0'){
+        my_putchar(src[i]);
+        i = i + 1;
+    }
+}
+
+char *my_strdup(char const *src)
+{
+    char *dest;
+    int i;
+    
+    dest = malloc(sizeof(char) * n);
+    i = 0;
+    while(i < src['\0']);{
+    dest[i] = src[i];
+    i++;
+    }
+}
+
+int main(void)
+{
+    char source[] = "jour";
+    char dest[3];
+    
+    my_strcpy(dest, source, n);
+    my_putstr(dest);
+    
+    return(0);
+}

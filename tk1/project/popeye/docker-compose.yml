@@ -1,0 +1,72 @@
+version: "3.9"
+services:
+  poll:
+    build: poll/
+    ports:
+      - "5000:80"
+    environment:
+        REDIS_HOST: redis
+    networks:
+      - poll-tier
+    restart: always
+    depends_on:
+      - "redis"
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6379"
+    networks:
+      - poll-tier
+      - back-tier
+    restart: always
+  result:
+    build: result/
+    ports:
+      - "5001:80"
+    environment:
+        POSTGRES_HOST: db
+        POSTGRES_USER: popeye
+        POSTGRES_PASSWORD: popeye
+        POSTGRES_DB: popeye
+    networks:
+      - result-tier
+    restart: always
+    depends_on:
+      - "db"
+  db:
+    image: "postgres:11-alpine3.15"
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432"
+    environment:
+        POSTGRES_USER: popeye
+        POSTGRES_PASSWORD: popeye
+        POSTGRES_DB: popeye
+    networks:
+      - result-tier
+      - back-tier
+    restart: always
+  worker:
+    build: worker/
+    environment:
+        REDIS_HOST: redis
+        POSTGRES_HOST: db
+        POSTGRES_USER: popeye
+        POSTGRES_PASSWORD: popeye
+        POSTGRES_DB: popeye
+    networks:
+      - back-tier
+    restart: always
+    depends_on:
+      - "redis"
+      - "db"
+      
+networks:
+  poll-tier:
+  result-tier:
+  back-tier:
+
+volumes:
+  db-data:

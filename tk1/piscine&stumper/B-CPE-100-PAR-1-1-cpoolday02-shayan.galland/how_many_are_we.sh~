@@ -1,0 +1,6 @@
+#!/bin/bash
+grep -iw $1 | wc -l
+if [ $# -eq 0 ]
+then
+    wc -l
+fi

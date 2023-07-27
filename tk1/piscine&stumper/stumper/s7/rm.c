@@ -1,0 +1,24 @@
+/*
+** EPITECH PROJECT, 2022
+** za
+** File description:
+** r
+*/
+
+#include "m.h"
+
+int main(int argc, char **argv)
+{
+    int l = 0;
+
+    if (argc != 2)
+        return 84;
+    if (argv[1][0] == '\0') {
+        my_putchar('\n');
+        return 0;
+    }
+    while (argv[1][l] >= 32 && argv[1][l] <= 47)
+        l++;
+    conv(argv[1], l);
+    return 0;
+}

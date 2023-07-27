@@ -1,0 +1,85 @@
+/*
+** EPITECH PROJECT, 2021
+** infin_add
+** File description:
+** y
+*/
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+void my_putchar(char c)
+{
+    write(1, &c, 1);
+}
+
+int my_strlen(char const *s)
+{
+    int i = 0;
+    while(s[i] != '\0')
+        i++;
+    return(i);
+}
+
+char *my_strcpy(char *dest, char const *src)
+{
+    int b = 0;
+    
+    while(src[b] != '\0'){
+        dest[b] = src[b];
+        b++;
+    }
+    return(dest);
+}
+
+int my_putnbr(int nb)
+{
+    if (nb < 0){
+        my_putchar('-');
+        nb = -1 * nb;
+    }
+    if (nb/10) {
+        my_putnbr(nb/10);
+        my_putchar(nb % 10 + '0');
+    }
+    if (nb < 10)
+        my_putchar(nb + '0');
+    return (0);
+}
+
+char *my_revstr(char *str)
+{
+    int b = 0;
+    
+    while(str[b] != 0){
+        str[b] = b--;
+    }
+}
+
+char *infin_add(char *nbr1, char *nbr2)
+{
+    char resultat;
+    char *res;
+    
+    res = malloc(sizeof(char) * (my_strlen(nbr1) + (my_strlen(nbr2))));
+    
+    my_revstr(nbr1);
+    my_revstr(nbr2);
+    
+    for(int n = 0; nbr1[n] != '\0' && nbr2[n] != '\0';n++){
+        while(res[n] <= '9'){
+            res[n] = nbr1[n] + nbr2[n] - '0';    
+            while(res[n] > '9'){
+                res[n] = '9';
+                res[n + 1] = nbr1[n + 1] + nbr2[n + 1] - '9';  
+            }
+        }
+    }
+    return (res);
+}
+
+int main(int ac, char **av)
+{
+    printf("'%s'\n",infin_add(av[1] ,av[2]));
+}

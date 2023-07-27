@@ -1,0 +1,4 @@
+./Makefile:26: INFO:C-A3
+./functions.h:1: MINOR:C-G1
+./print.h:11: MINOR:C-L4
+./utils.c:35: INFO:C-A3

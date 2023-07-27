@@ -1,0 +1,32 @@
+SRC = 	MinilibC/strlen.asm 		\
+		MinilibC/strchr.asm			\
+		MinilibC/strrchr.asm		\
+		MinilibC/memset.asm			\
+		MinilibC/memcpy.asm			\
+		MinilibC/strcmp.asm			\
+		MinilibC/memmove.asm		\
+		MinilibC/strncmp.asm		\
+		MinilibC/strcasecmp.asm		\
+		MinilibC/strstr.asm			\
+#		MinilibC/strpbrk.asm		\
+#		MinilibC/strcspn.asm
+
+OBJ = $(SRC:.asm=.o)
+
+all: $(OBJ)
+
+%.o: %.asm
+	nasm -f elf64 -o $@ $<
+
+NAME = libasm.so
+
+$(NAME): $(OBJ)
+	ld -fPIC -shared -o $(NAME) $(OBJ)
+
+clean:
+	rm -f $(OBJ)
+
+fclean: clean
+	rm -f $(NAME)
+
+re: fclean all

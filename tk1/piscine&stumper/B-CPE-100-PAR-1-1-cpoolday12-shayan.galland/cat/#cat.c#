@@ -1,0 +1,10 @@
+/*
+** EPITECH PROJECT, 2021
+** cat
+** File description:
+** y
+*/
+int cat(char c)
+{
+    
+}

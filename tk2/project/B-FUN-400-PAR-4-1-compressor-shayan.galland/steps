@@ -1,0 +1,47 @@
+
+So the problem i have is this part of the code:
+
+
+clustering :: [[Int]] -> Int -> Double -> IO ()
+clustering points k limit = do
+  clusters <- kmeans points k limit
+  putStrLn "Clusters:"
+  mapM_ print clusters
+
+kmeans :: [[Int]] -> Int -> Double -> IO [[[Int]]]
+kmeans points k limit = do
+  initialCentroids' <- initialCentroids points k
+  let loop centroids =
+        let clusters = clusterPoints points centroids
+            newCentroids = updateCentroids clusters
+            diff = maximum $ map (uncurry euclideanDistance) $ zip centroids newCentroids
+        in if diff < limit
+           then return clusters
+           else loop newCentroids
+  loop initialCentroids'
+
+initialCentroids :: [[Int]] -> Int -> IO [[Double]]
+initialCentroids points k = do
+  gen <- newStdGen
+  let indices = take k $ randomRs (0, length points - 1) gen
+  putStrLn $ "length points = " ++ show (length points)
+  putStrLn $ "indices = " ++ show indices
+  return [map fromIntegral (drop 2 (points !! i)) | i <- indices]
+
+closestCentroid :: [Double] -> [[Double]] -> Int
+closestCentroid point centroids = fst $ minimumBy (comparing snd) $ zip [0..] distances
+  where distances = map (euclideanDistance point) centroids
+
+euclideanDistance :: [Double] -> [Double] -> Double
+euclideanDistance p1 p2 = sqrt $ sum $ map (^2) $ zipWith (-) p1 p2
+
+clusterPoints :: [[Int]] -> [[Double]] -> [[[Int]]]
+clusterPoints points centroids = groupBy (\p1 p2 -> closestCentroid p1 centroids == closestCentroid p2 centroids) points
+  where
+    closestCentroid p centroids = minimumBy (\c1 c2 -> compare (euclideanDistance (map fromIntegral p) c1) (euclideanDistance (map fromIntegral p) c2)) centroids
+
+updateCentroids :: [[[Int]]] -> [[Double]]
+updateCentroids clusters = map calculateCentroid clusters
+  where
+    calculateCentroid cluster = map (\i -> mean $ map (\p -> fromIntegral (p !! i)) cluster) [2..]
+    mean xs = sum xs / fromIntegral (length xs)

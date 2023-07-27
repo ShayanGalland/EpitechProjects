@@ -1,0 +1,10 @@
+/*
+** EPITECH PROJECT, 2022
+** score
+** File description:
+** scoret
+*/
+
+#include "main.c"
+
+void score(int )

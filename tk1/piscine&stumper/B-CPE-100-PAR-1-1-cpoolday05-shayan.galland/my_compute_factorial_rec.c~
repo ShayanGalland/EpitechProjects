@@ -1,0 +1,40 @@
+/*
+** EPITECH PROJECT, 2021
+** my_compute_factorial_rec
+** File description:
+** 
+*/
+#include <stdio.h>
+
+int my_compute_factorial_rec(int nb)
+{
+    int a = 1;
+    int b = 1;
+    int c = 1;
+    int d = 1;
+
+    if(nb == 0)
+        return(0);
+    if(nb == 1)
+        return(0);
+
+    while(b != nb){
+        b = b + 1;
+        c = b * a;
+        a = a + 1;
+        d = c * (a + 1);
+    }
+
+    return(d);
+}
+
+int main(void)
+{
+    my_compute_factorial_it(5);
+
+    printf("%d\n" ,my_compute_factorial_it(5));
+
+    return(0);
+}
+
+

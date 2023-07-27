@@ -1,0 +1,190 @@
+#!/usr/bin/python3
+
+import sys
+from math import *
+from copy import deepcopy
+
+argc = len(sys.argv)
+argv = sys.argv
+
+def help():
+    print("USAGE")
+    print("\t./108trigo fun a0 a1 a2 ...")
+    print("DESCRIPTION")
+    print("\tfun\tfunction to be applied, among at least “EXP”, “COS”, ")
+    print("\t\t“SIN”, “COSH” and “SINH”")
+    print("\tai\tcoeficients of the matrix")
+    return 1
+
+def create_zeros_matrix(n):
+    matrix = list()
+    for i in range(n):
+        matrix.append(list())
+        for j in range(n):
+            matrix[i].append(0)
+
+    return matrix
+
+def identity_matrix(matrix):
+    n = len(matrix)
+
+    identity = create_zeros_matrix(n)
+
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                identity[i][j] = 1
+
+    return identity
+
+def add_matrix(matrix1, matrix2):
+    n = len(matrix1)
+    final_matrix = create_zeros_matrix(n)
+    for i in range(n):
+        for j in range(n):
+            final_matrix[i][j] = matrix1[i][j] + matrix2[i][j]
+    return final_matrix
+
+def sub_matrix(matrix1, matrix2):
+    n = len(matrix1)
+    final_matrix = create_zeros_matrix(n)
+    for i in range(n):
+        for j in range(n):
+            final_matrix[i][j] = matrix1[i][j] - matrix2[i][j]
+    return final_matrix
+
+def mult_matrix(matrix1, matrix2):
+    n = len(matrix1)
+    final_matrix = create_zeros_matrix(n)
+    for i in range(n):
+        for j in range(n):
+            final_matrix[i][j] = sum([ matrix1[i][x]*matrix2[x][j] for x in range(n)])
+    return final_matrix
+
+def mult_matrix_scalar(matrix1, k):
+    n = len(matrix1)
+    final_matrix = create_zeros_matrix(n)
+    for i in range(n):
+        for j in range(n):
+            final_matrix[i][j] = matrix1[i][j] * k
+    return final_matrix
+
+def divide_matrix(matrix1, k):
+    n = len(matrix1)
+    final_matrix = create_zeros_matrix(n)
+    for i in range(n):
+        for j in range(n):
+            final_matrix[i][j] = matrix1[i][j] / k
+    return final_matrix
+
+def power_matrix(matrix, k):
+    final_matrix = deepcopy(matrix)
+
+    for i in range(2, k+1):
+        final_matrix = mult_matrix(final_matrix, matrix)
+
+    return final_matrix
+
+
+def exp(matrix):
+    final_matrix = identity_matrix(matrix)
+    final_matrix = add_matrix(final_matrix, matrix)
+
+    for i in range(2, 50):
+        final_matrix = add_matrix(final_matrix, divide_matrix(power_matrix(matrix,i), factorial(i)))
+
+    return final_matrix
+
+def cos(matrix):
+    final_matrix = identity_matrix(matrix)
+
+    is_sub = True
+    for i in range(2, 50, 2):
+        if is_sub:
+            final_matrix = sub_matrix(final_matrix, divide_matrix(power_matrix(matrix,i), factorial(i)))
+        else:
+            final_matrix = add_matrix(final_matrix, divide_matrix(power_matrix(matrix,i), factorial(i)))
+
+        is_sub = not is_sub
+
+    return final_matrix
+
+def sin(matrix):
+    final_matrix = deepcopy(matrix)
+
+    is_sub = True
+    for i in range(3, 50, 2):
+        if is_sub:
+            final_matrix = sub_matrix(final_matrix, divide_matrix(power_matrix(matrix,i), factorial(i)))
+        else:
+            final_matrix = add_matrix(final_matrix, divide_matrix(power_matrix(matrix,i), factorial(i)))
+
+        is_sub = not is_sub
+    return final_matrix
+
+def sinh(matrix):
+    return divide_matrix( sub_matrix(exp(matrix), exp(mult_matrix_scalar(matrix, -1))), 2)
+
+def cosh(matrix):
+    return divide_matrix( add_matrix(exp(matrix), exp(mult_matrix_scalar(matrix, -1))), 2)
+
+def print_matrix(matrix):
+    n = len(matrix)
+    for i in range(n):
+        for j in range(n):
+            print(f"{matrix[i][j]:.2f}", end="")
+            if j < n-1:
+                print("\t", end="")
+        print("")
+
+def params():
+    if argc == 1:
+        exit(84)
+    if argc >= 2:
+        if argv[1] == "-h":
+            help()
+        elif argv[1] == "--help":
+            help()
+        elif argv[1] not in ["EXP", "COS", "SIN", "COSH", "SINH"]:
+            print("Wrong arguments\ntry :")
+            help()
+            exit (84)
+        try:
+            for count in range(2, len(argv)):
+                argv[count] = float(argv[count])
+        except ValueError:
+            print("Wrong arguments\ntry :")
+            help()
+            exit (84)
+    n = sqrt(argc-2) % 1
+    if n != 0:
+        print("Matrix have to be square\ntry :")
+        help()
+        exit(84)
+
+def trigo():
+    params()
+    numbers = argv[2:]
+    n = int(sqrt(len(numbers)))
+    matrix = list()
+    for r in range(n):
+        i = r*n
+        matrix.append(numbers[i:i+n])
+
+    if argv[1] == "EXP":
+        matrix = exp(matrix)
+    if argv[1] == "SIN":
+        matrix = sin(matrix)
+    if argv[1] == "COS":
+        matrix = cos(matrix)
+    if argv[1] == "COSH":
+        matrix = cosh(matrix)
+    if argv[1] == "SINH":
+        matrix = sinh(matrix)
+
+    print_matrix(matrix)
+    exit(0)
+
+
+if __name__ == "__main__":
+    trigo()

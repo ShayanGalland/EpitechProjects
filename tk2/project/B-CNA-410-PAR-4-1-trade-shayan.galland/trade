@@ -1,0 +1,203 @@
+import sys
+
+class Bot:
+    def __init__(self):
+        self.botState = BotState()
+
+    def run(self):
+        while True:
+            reading = input()
+            if len(reading) == 0:
+                continue
+            self.parse(reading)
+
+    def parse(self, info: str):
+        tmp = info.split(" ")
+        if tmp[0] == "settings":
+            self.botState.update_settings(tmp[1], tmp[2])
+        if tmp[0] == "update":
+            if tmp[1] == "game":
+                self.botState.update_game(tmp[2], tmp[3])
+        if tmp[0] == "action":
+            dollars = self.botState.stacks["USDT"]
+            btc = self.botState.stacks["BTC"]
+            current_price = self.botState.charts[self.botState.pair].closes[-1]
+            affordable = dollars / current_price
+
+            MACD = self.botState.charts[self.botState.pair].indicators["MACD"][-1]
+            MACD_EMA = self.botState.charts[self.botState.pair].indicators["MACD-EMA"][-1]
+
+            action = "no_moves"
+            move = ""
+
+            if MACD > MACD_EMA:
+                move = ">"
+            else:
+                move = "<"
+
+            if self.botState.current_move != move and not self.botState.current_move == "":
+                if move == ">":
+                    action = f'buy USDT_BTC {affordable}'
+                    print(f'BUY SIGNAL',file=sys.stderr)
+                else:
+                    action = f'sell USDT_BTC {btc}'
+                    print(f'SELL SIGNAL',file=sys.stderr)
+
+            
+            self.botState.current_move = move
+          
+            print(action, flush=True)
+
+
+class Candle:
+    def __init__(self, format, intel):
+        tmp = intel.split(",")
+        for (i, key) in enumerate(format):
+            value = tmp[i]
+            if key == "pair":
+                self.pair = value
+            if key == "date":
+                self.date = int(value)
+            if key == "high":
+                self.high = float(value)
+            if key == "low":
+                self.low = float(value)
+            if key == "open":
+                self.open = float(value)
+            if key == "close":
+                self.close = float(value)
+            if key == "volume":
+                self.volume = float(value)
+
+    def __repr__(self):
+        return str(self.pair) + str(self.date) + str(self.close) + str(self.volume)
+
+
+class Chart:
+    def __init__(self):
+        self.dates = []
+        self.opens = []
+        self.highs = []
+        self.lows = []
+        self.closes = []
+        self.volumes = []
+        self.indicators = {}
+        self.indicators["EMA-SHORT"] = []
+        self.indicators["EMA-LONG"] = []
+        self.indicators["MACD"] = []
+        self.indicators["MACD-EMA"] = []
+        self.indicators["PERIOD_SHORT"] = 12
+        self.indicators["PERIOD_LONG"] = 26
+        self.indicators["PERIOD_SIGNAL"] = 9
+
+    def add_candle(self, candle: Candle):
+        self.dates.append(candle.date)
+        self.opens.append(candle.open)
+        self.highs.append(candle.high)
+        self.lows.append(candle.low)
+        self.closes.append(candle.close)
+        self.volumes.append(candle.volume)
+
+        if len(self.closes) == self.indicators["PERIOD_SHORT"]:
+            SMA = sum(self.closes) / len(self.closes)
+            self.indicators["EMA-SHORT"].append(SMA)
+            print(f'SMA EMA-SHORT {SMA}',file=sys.stderr)
+        elif len(self.closes) > self.indicators["PERIOD_SHORT"]:
+            EMA = candle.close*(2/(self.indicators["PERIOD_SHORT"]+1)) + self.indicators["EMA-SHORT"][-1] * (1-(2/(self.indicators["PERIOD_SHORT"]+1)))
+            self.indicators["EMA-SHORT"].append(EMA)
+        else:
+            self.indicators["EMA-SHORT"].append(0)
+
+        last_value_ema_short = self.indicators["EMA-SHORT"][-1]
+
+        if len(self.closes) == self.indicators["PERIOD_LONG"]:
+            SMA = sum(self.closes) / len(self.closes)
+            self.indicators["EMA-LONG"].append(SMA)
+        elif len(self.closes) > self.indicators["PERIOD_LONG"]:
+            EMA = candle.close*(2/(self.indicators["PERIOD_LONG"]+1)) + self.indicators["EMA-LONG"][-1] * (1-(2/(self.indicators["PERIOD_LONG"]+1)))
+            self.indicators["EMA-LONG"].append(EMA)
+        else:
+            self.indicators["EMA-LONG"].append(0)
+
+        last_value_ema_long = self.indicators["EMA-LONG"][-1]
+
+        if len(self.closes) > self.indicators["PERIOD_LONG"]:
+            self.indicators["MACD"].append(last_value_ema_short-last_value_ema_long)
+        else:
+            self.indicators["MACD"].append(0) 
+
+        last_value_macd = self.indicators["MACD"][-1]
+
+        if len(self.closes) == self.indicators["PERIOD_LONG"]+self.indicators["PERIOD_SIGNAL"]:
+            SMA = sum(self.indicators["MACD"][:-self.indicators["PERIOD_SIGNAL"]]) / 9
+            self.indicators["MACD-EMA"].append(SMA)
+        elif len(self.closes) > self.indicators["PERIOD_LONG"]+self.indicators["PERIOD_SIGNAL"]:
+            EMA = last_value_macd*(2/(self.indicators["PERIOD_SIGNAL"]+1)) + self.indicators["MACD"][-2] * (1-(2/(self.indicators["PERIOD_SIGNAL"]+1)))
+            self.indicators["MACD-EMA"].append(EMA)
+        else:
+            self.indicators["MACD-EMA"].append(0)
+
+class BotState:
+    def __init__(self):
+        self.timeBank = 0
+        self.maxTimeBank = 0
+        self.timePerMove = 1
+        self.candleInterval = 1
+        self.candleFormat = []
+        self.candlesTotal = 0
+        self.candlesGiven = 0
+        self.initialStack = 0
+        self.transactionFee = 0.1
+        self.date = 0
+        self.stacks = dict()
+        self.charts = dict()
+        self.current_move = ""
+        self.pair = ""
+
+    def update_chart(self, pair: str, new_candle_str: str):
+        self.pair = pair
+        if not (pair in self.charts):
+            self.charts[pair] = Chart()
+        new_candle_obj = Candle(self.candleFormat, new_candle_str)
+        self.charts[pair].add_candle(new_candle_obj)
+
+    def update_stack(self, key: str, value: float):
+        self.stacks[key] = value
+
+    def update_settings(self, key: str, value: str):
+        if key == "timebank":
+            self.maxTimeBank = int(value)
+            self.timeBank = int(value)
+        if key == "time_per_move":
+            self.timePerMove = int(value)
+        if key == "candle_interval":
+            self.candleInterval = int(value)
+        if key == "candle_format":
+            self.candleFormat = value.split(",")
+        if key == "candles_total":
+            self.candlesTotal = int(value)
+        if key == "candles_given":
+            self.candlesGiven = int(value)
+        if key == "initial_stack":
+            self.initialStack = int(value)
+        if key == "transaction_fee_percent":
+            self.transactionFee = float(value)
+
+    def update_game(self, key: str, value: str):
+        if key == "next_candles":
+            new_candles = value.split(";")
+            self.date = int(new_candles[0].split(",")[1])
+            for candle_str in new_candles:
+                candle_infos = candle_str.strip().split(",")
+                self.pair = candle_infos[0]
+                self.update_chart(candle_infos[0], candle_str)
+        if key == "stacks":
+            new_stacks = value.split(",")
+            for stack_str in new_stacks:
+                stack_infos = stack_str.strip().split(":")
+                self.update_stack(stack_infos[0], float(stack_infos[1]))
+
+
+if __name__ == "__main__":
+    mybot = Bot()
+    mybot.run()

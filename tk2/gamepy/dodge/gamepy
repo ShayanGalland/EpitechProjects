@@ -1,0 +1,230 @@
+#!/usr/bin/env python3
+import pygame
+from pygame.locals import *
+from OpenGL.GL import *
+from OpenGL.GLU import *
+import sys
+import time
+import random
+
+# define constants
+SCREEN_SIZE = (800, 600)
+BACKGROUND_COLOR = (0, 0, 0)
+BUTTON_COLOR = (255, 0, 0)
+BUTTON_WIDTH = 200
+BUTTON_HEIGHT = 50
+BUTTON_PADDING = 20
+LEVEL_SPEEDS = [1, 4, 8, 10, 15]
+
+# initialize Pygame
+pygame.init()
+font = pygame.font.Font(None, 36)
+
+# create clock for controlling FPS
+clock = pygame.time.Clock()
+FPS = 60
+screen = pygame.display.set_mode(SCREEN_SIZE)
+
+class Player:
+    def __init__(self, x, y, width=30, height=30, speed=5):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.speed = speed
+
+
+
+    def move(self, keys):
+        if keys[pygame.K_z]:
+            self.rect.move_ip(0, -self.speed)
+        if keys[pygame.K_s]:
+            self.rect.move_ip(0, self.speed)
+        if keys[pygame.K_q]:
+            self.rect.move_ip(-self.speed, 0)
+        if keys[pygame.K_d]:
+            self.rect.move_ip(self.speed, 0)
+
+        # keep the player within screen bounds
+        if self.rect.left < 0:
+            self.rect.left = 0
+        elif self.rect.right > SCREEN_SIZE[0]:
+            self.rect.right = SCREEN_SIZE[0]
+        if self.rect.top < 0:
+            self.rect.top = 0
+        elif self.rect.bottom > SCREEN_SIZE[1]:
+            self.rect.bottom = SCREEN_SIZE[1]
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, (255, 255, 255), self.rect)
+
+# fallingObject class
+class FallingObject:
+    def __init__(self, x, y, speed, width=20, height=20):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.speed = speed
+
+    def set_speed(self, speed):
+        self.speed = speed
+
+    def update(self):
+        self.speed += 0.01 * self.speed
+        self.rect.move_ip(0, self.speed)
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, (255, 0, 0), self.rect)
+
+# game level function
+
+def game_level(level):
+    player_speeds = [1, 5, 10, 15, 20]
+    player = Player(SCREEN_SIZE[0] / 2, SCREEN_SIZE[1] / 2, speed=player_speeds[level-1])
+    objects = [FallingObject(random.randint(0, SCREEN_SIZE[0] - 20), 0, LEVEL_SPEEDS[level - 1]) for _ in range(5 * level)]
+
+
+
+    start_time = pygame.time.get_ticks()
+
+    buffer_zone = 0
+    min_x = 0 + buffer_zone
+    max_x = SCREEN_SIZE[0] - 20 - buffer_zone
+
+    while True:
+        clock.tick(FPS)
+        keys = pygame.key.get_pressed()
+        player.move(keys)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return "level_select"
+
+        # check collision with player
+
+        for obj in objects:
+            if player.rect.colliderect(obj.rect):
+                print("Game Over")
+                return "level_select"
+
+        # remove objects that are out of screen and add new ones
+        objects = [obj for obj in objects if obj.rect.top < SCREEN_SIZE[1]]
+        while len(objects) < 4 * level:
+            new_x = random.randint(min_x, max_x)
+            new_object = FallingObject(new_x, 0, level) 
+            objects.append(new_object)
+
+        for obj in objects:
+            obj.update()
+
+        # check if level time is over
+        if pygame.time.get_ticks() - start_time > 1000 * (30 + 10 * (level - 1)):
+            print("Level completed")
+            return "level_select"
+        screen.fill(BACKGROUND_COLOR)
+        player.draw(screen)
+        for obj in objects:
+            obj.draw(screen)
+        pygame.display.update()
+
+class Button:
+    def __init__(self, text, x, y, action=None):
+        self.text = text
+        self.rect = pygame.Rect(x, y, BUTTON_WIDTH, BUTTON_HEIGHT)
+        self.action = action
+
+    def draw(self, screen):
+        pygame.draw.rect(screen, BUTTON_COLOR, self.rect)
+        label = font.render(self.text, 1, (0,0,0))
+        screen.blit(label, (self.rect.x, self.rect.y))
+
+    def is_clicked(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if self.rect.collidepoint(event.pos):
+                return self.action() if self.action else True
+        return False
+
+# level selection function
+def level_select():
+    buttons = [Button(f"Level {i+1}", SCREEN_SIZE[0] / 2 - BUTTON_WIDTH / 2, SCREEN_SIZE[1] / 2 - BUTTON_HEIGHT / 2 - BUTTON_PADDING - BUTTON_HEIGHT + i * (BUTTON_HEIGHT + BUTTON_PADDING), action=lambda i=i: i+1) for i in range(5)]
+    while True:
+        clock.tick(FPS)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return "main_menu"
+            for button in buttons:
+                level = button.is_clicked(event)
+                if level:
+                    print(f"Starting Level {level}")
+                    return level
+        screen.fill(BACKGROUND_COLOR)
+        for button in buttons:
+            button.draw(screen)
+        pygame.display.update()
+
+
+# FPS setting function
+def fps_setting():
+    global FPS
+    buttons = [Button(f"{fps} FPS", SCREEN_SIZE[0] / 2 - BUTTON_WIDTH / 2, SCREEN_SIZE[1] / 2 - BUTTON_HEIGHT / 2 - BUTTON_PADDING - BUTTON_HEIGHT + i * (BUTTON_HEIGHT + BUTTON_PADDING), action=lambda fps=fps: set_fps(fps)) for i, fps in enumerate([30, 60, 144])]
+    while True:
+        clock.tick(FPS)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return "main_menu"
+            for button in buttons:
+                if button.is_clicked(event):
+                    button.action()
+        screen.fill(BACKGROUND_COLOR)
+        for button in buttons:
+            button.draw(screen)
+        pygame.display.update()
+
+def set_fps(fps):
+    global FPS
+    FPS = fps
+    print(f"Setting FPS to {FPS}")
+
+# main menu function
+def main_menu():
+    buttons = [
+        Button("Play", SCREEN_SIZE[0] / 2 - BUTTON_WIDTH / 2, SCREEN_SIZE[1] / 2 - BUTTON_HEIGHT / 2 - BUTTON_PADDING - BUTTON_HEIGHT, action=level_select),
+        Button("Settings", SCREEN_SIZE[0] / 2 - BUTTON_WIDTH / 2, SCREEN_SIZE[1] / 2 - BUTTON_HEIGHT / 2, action=fps_setting),
+        Button("Quit", SCREEN_SIZE[0] / 2 - BUTTON_WIDTH / 2, SCREEN_SIZE[1] / 2 + BUTTON_HEIGHT / 2 + BUTTON_PADDING, action=sys.exit),
+    ]
+    while True:
+        clock.tick(FPS)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            for button in buttons:
+                if button.is_clicked(event):
+                    return button.action()
+        screen.fill(BACKGROUND_COLOR)
+        for button in buttons:
+            button.draw(screen)
+        pygame.display.update()
+
+#game loop
+state_stack = [main_menu]
+
+while state_stack:
+    state = state_stack[-1]()
+    if state == "main_menu":
+        state_stack = [main_menu]
+    elif state == "level_select":
+        state_stack.append(level_select)
+    elif state == "fps_setting":
+        state_stack.append(fps_setting)
+    elif isinstance(state, int):
+        state_stack.append(lambda: game_level(state))
+    elif state == sys.exit:
+        pygame.quit()
+        sys.exit()

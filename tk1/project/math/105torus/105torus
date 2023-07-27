@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+import sys
+import math
+
+opt = float(sys.argv[1])
+a0 = float(sys.argv[2])
+a1 = float(sys.argv[3])
+a2 = float(sys.argv[4])
+a3 = float(sys.argv[5])
+a4 = float(sys.argv[6])
+n = int(sys.argv[7])
+presision = math.pow(10, -n)
+
+def help():
+    print("USAGE")
+    print("./torus opt a0 a1 a2 a3 a4 n\n")
+    print("DESCRIPTION")
+    print("    opt\t\tmethod option:")
+    print("\t\t\t1 for the bisection method")
+    print("\t\t\t2 for Newton's method")
+    print("\t\t\t3 for the secant method")
+    print("    a[0-4]\tcoefficients of the equation")
+    print("    n\t\tprecision (the application of the polynomial to the solution should ")
+    print("\t\tbe smaller than 10^-n)")
+
+def function(x, i):
+    if (i == 1):
+        res = (a4 * math.pow(x, 4))  + (a3 * math.pow(x, 3)) + (a2 * math.pow(x, 2)) + (a1 * x) + a0
+        return(res)
+    if (i == 2):
+        res = 4 * a4 * math.pow(x, 3) + 3 * a3 * math.pow(x, 2) + 2 * a2 * x + a1
+        return (res)
+
+def torus():
+    if (sys.argv[1] == "-h"):
+        help()
+        sys.exit(0)
+    if (len(sys.argv) != 8):
+        sys.exit(84)
+    if (sys.argv[1] != '1' and sys.argv[1] != '2' and sys.argv[1] != '3'):
+        sys.exit(84)
+    if (float(sys.argv[6]) > 15):
+        sys.exit(84)
+
+    if (sys.argv[1] == '1'):
+        x = 1
+        i = 0
+        j = 1
+        res = 0
+        while (abs(res - x) >= presision):
+            x = res
+            res = (i + j) / 2
+            if (function(i, 1) * function(res, 1) < 0):
+                j = res
+            else:
+                i = res
+            if ((math.pow(10, n) * res % 1 == 0)):
+                print("x =",res)
+            else:
+                print("x = %.*f" %(n, x))
+
+
+    if (sys.argv[1] == '2'):
+        c = 1
+        x = 0.5
+        while(abs(x - c) >= presision):
+            c = x
+            if ((math.pow(10, n) * x % 1 == 0)):
+                print("x =",x)
+            else:
+                print("x = %.*f" %(n, x))
+            x = x - (function(x, 1) / function(x, 2))
+        sys.exit(0)
+    else:
+        sys.exit(0)
+
+torus()

@@ -1,0 +1,529 @@
+File: include/ingredientsManager.hpp
+#ifndef INGREDIENTSMANAGER_HPP_
+#define INGREDIENTSMANAGER_HPP_
+#include "pizza.hpp"
+
+class IngredientsManager {
+private:
+    std::atomic<int> cheese{10};
+    std::atomic<int> tomato{10};
+    std::atomic<int> dough{10};
+    std::atomic<int> gruyere{10};
+    std::atomic<int> ham{10};
+    std::atomic<int> mushrooms{10};
+    std::atomic<int> steak{10};
+    std::atomic<int> eggplant{10};
+    std::atomic<int> goat_cheese{10};
+    std::atomic<int> chief_love{10};
+    std::atomic<bool> should_stop{false};
+    std::thread restock_thread;
+    std::mutex mtx;
+
+    void restock();
+public:
+
+    int _restock_time;
+
+    bool getIngredientsForPizza(Pizza::Type type);
+
+    IngredientsManager(int restock_time);
+    ~IngredientsManager();
+};
+
+#endif
+
+File: include/reception.hpp
+#ifndef RECEPTION_HPP_
+#define RECEPTION_HPP_
+#include "pizza.hpp"
+#include "kitchen.hpp"
+
+class Reception {
+    std::vector<std::unique_ptr<Kitchen>> kitchens;
+    int restockTimer;
+    int cooksPerKitchen;
+    int kitchenCount;
+public:
+    std::mutex mtx_cmdlck;
+    Reception(int cooksPerKitchen, int restockTime, int kitchenCount);
+    void start(double cookingTimeMultiplier);
+    void orderPizza(Pizza::Type type, Pizza::Size size, int quantity, double cookingTimeMultiplier);
+    void displayStatus();
+    Kitchen* getAvailableKitchen();
+    Kitchen* waitForKitchen();
+
+    Pizza::Type stringToType(const std::string& typeStr);
+    Pizza::Size stringToSize(const std::string& sizeStr);
+};
+
+#endif
+
+File: include/pizza.hpp
+#ifndef PIZZA_HPP_
+#define PIZZA_HPP_
+
+class Pizza {
+public:
+    enum class Type {
+        Regina = 1,
+        Margarita = 2,
+        Americana = 4,
+        Fantasia = 8
+    };
+    enum class Size {
+        S = 1,
+        M = 2,
+        L = 4,
+        XL = 8,
+        XXL = 16
+    };
+    Type type;
+    Size size;
+    std::vector<std::string> ingredients;
+    bool operator==(const Pizza& other) const;
+    Pizza(Type type, Size size);
+    Pizza() = default;
+};
+
+#endif
+
+File: include/cook.hpp
+#ifndef COOK_HPP_
+#define COOK_HPP_
+#include "pizza.hpp"
+
+class Kitchen;
+
+class Cook {
+    std::atomic<bool> is_busy{false};
+    std::atomic<bool> should_stop{false};
+    std::mutex stop_mtx;
+    std::condition_variable cv;
+public:
+    void stop(std::list<Pizza>& pizzas);
+    bool isStopping();
+    bool isBusy();
+    void setBusy(bool busy);
+    void cook(std::list<Pizza>& pizzas, Kitchen& kitchen, double cookingTimeMultiplier);
+    std::condition_variable& getConditionVariable();
+    Cook() = default;
+};
+
+#endif
+
+File: include/message.hpp
+#ifndef MESSAGE_HPP
+#define MESSAGE_HPP
+#include "pizza.hpp"
+
+struct Message {
+    long mtype;
+    Pizza::Type type;
+    Pizza::Size size;
+    int quantity;
+};
+
+#endif
+
+File: include/kitchen.hpp
+#ifndef KITCHEN_HPP_
+#define KITCHEN_HPP_
+#include "pizza.hpp"
+#include "cook.hpp"
+#include "ingredientsManager.hpp"
+#include "message.hpp"
+
+
+class Cook;
+class Kitchen {
+private:
+    std::vector<std::unique_ptr<Cook>> cooks;
+    std::list<Pizza> pizzas;
+    std::vector<std::thread> cookThreads;
+    std::unique_ptr<IngredientsManager> ingredientsManager;
+    pid_t _pid;
+    bool busy;
+
+public:
+
+    mqd_t mqd;
+    int restockTime;
+    std::mutex mtx;
+
+    bool isBusy() const;
+    void setBusy(bool b);
+    void setPid(int pid);
+    pid_t getPid() const;
+    size_t getNumberOfPizzas() const;
+    const std::vector<std::unique_ptr<Cook>>& getCooks() const;
+    bool isFull();
+    IngredientsManager& getIngredientsManager() const;
+    void start(double cookingTimeMultiplier);
+    mqd_t getMqd() const;
+    void addOrder(Pizza& pizza, double cookingTimeMultiplier);
+    void removePizza(const Pizza& pizza);
+
+    Kitchen(int numCooks, int _restockTime);
+    ~Kitchen();
+    Kitchen(const Kitchen& other) = delete;
+    Kitchen(Kitchen&& other) = delete;
+};
+
+#endif
+
+File: src/reception.cpp
+#include "../include/reception.hpp"
+#include "../include/pizza.hpp"
+
+
+Reception::Reception(int cooksPerKitchen, int restockTime, int kitchenCount) 
+    : cooksPerKitchen(cooksPerKitchen), restockTimer(restockTime), kitchenCount(kitchenCount)
+{
+    for (int i = 0; i < kitchenCount; i++) {
+        kitchens.push_back(std::make_unique<Kitchen>(cooksPerKitchen, restockTime));
+
+        int pid = fork();
+        if (pid < 0) {
+            perror("Failed to fork process");
+            return;
+        } else if (pid == 0) {
+            kitchens.back()->start(2.0);
+            exit(0);
+        } else {
+            kitchens.back()->setPid(pid);
+        }
+    }
+}
+
+Kitchen* Reception::getAvailableKitchen() {
+    for (auto& kitchen : kitchens) {
+        if (!kitchen->isBusy() && !kitchen->isFull()) {
+            return kitchen.get();
+        }
+    }
+    return nullptr;
+}
+
+Kitchen* Reception::waitForKitchen() {
+    Kitchen* kitchen;
+    while ((kitchen = getAvailableKitchen()) == nullptr)
+        std::cout << "Wait for a Kitchen" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    return kitchen;
+}
+
+void Reception::orderPizza(Pizza::Type type, Pizza::Size size, int quantity, double cookingTimeMultiplier) {
+
+    for (int i = 0; i < quantity; i++) {
+        Kitchen* availableKitchen = waitForKitchen();
+        Message msg;
+        msg.mtype = 1;
+        msg.type = type;
+        msg.size = size;
+        msg.quantity = 1;
+        mq_send(availableKitchen->getMqd(), (const char*)&msg, sizeof(Message), 0);
+    }
+}
+
+void Reception::start(double cookingTimeMultiplier) {
+    std::string line;
+    while (std::getline(std::cin, line)) {
+
+        if (line != "status") {
+            std::istringstream iss(line);
+            std::string segment;
+            while (std::getline(iss, segment, ';')) {
+                std::istringstream iss2(segment);
+                std::string typeStr, sizeStr, quantityStr;
+                iss2 >> typeStr >> sizeStr >> quantityStr;
+                Pizza::Type type = stringToType(typeStr);
+                Pizza::Size size = stringToSize(sizeStr);
+                std::regex pattern(R"(\b[xX](\d+)\b)");
+                std::smatch matches;
+                if (std::regex_search(quantityStr, matches, pattern)) {
+                    quantityStr = matches[1].str();
+                }
+                int quantity = std::stoi(quantityStr);
+                std::cout << "Ordering " << typeStr << " " << sizeStr << " " << quantity << " times." << std::endl;
+                orderPizza(type, size, quantity, cookingTimeMultiplier);
+            }
+        } else
+            displayStatus();
+    }
+    for (auto& kitchen : kitchens) {
+        int status;
+        waitpid(kitchen->getPid(), &status, 0);
+    }
+}
+
+void Reception::displayStatus() {
+    //do it
+}
+
+Pizza::Type Reception::stringToType(const std::string& typeStr) {
+    if (typeStr == "Regina") return Pizza::Type::Regina;
+    if (typeStr == "Margarita") return Pizza::Type::Margarita;
+    if (typeStr == "Americana") return Pizza::Type::Americana;
+    if (typeStr == "Fantasia") return Pizza::Type::Fantasia;
+    throw std::invalid_argument("Invalid pizza type: " + typeStr);
+}
+
+Pizza::Size Reception::stringToSize(const std::string& sizeStr) {
+    if (sizeStr == "S") return Pizza::Size::S;
+    if (sizeStr == "M") return Pizza::Size::M;
+    if (sizeStr == "L") return Pizza::Size::L;
+    if (sizeStr == "XL") return Pizza::Size::XL;
+    if (sizeStr == "XXL") return Pizza::Size::XXL;
+    throw std::invalid_argument("Invalid pizza size: " + sizeStr);
+}
+
+File: src/ingredient.cpp
+#include "../include/ingredientsManager.hpp"
+
+void IngredientsManager::restock() {
+    while (!should_stop) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(_restock_time));
+        std::lock_guard<std::mutex> lock(mtx);
+        tomato += 10;
+        dough += 10;
+        gruyere += 10;
+        ham += 10;
+        mushrooms += 10;
+        steak += 10;
+        eggplant += 10;
+        goat_cheese += 10;
+        chief_love += 10;
+
+    }
+}
+
+IngredientsManager::IngredientsManager(int restock_time) : _restock_time(restock_time) {
+    restock_thread = std::thread(&IngredientsManager::restock, this);
+}
+
+IngredientsManager::~IngredientsManager() {
+    should_stop = true;
+    if (restock_thread.joinable()) {
+        restock_thread.join();
+    }
+}
+
+bool IngredientsManager::getIngredientsForPizza(Pizza::Type type) {
+    std::lock_guard<std::mutex> lock(mtx);
+    if (type == Pizza::Type::Margarita) {
+        if (dough > 0 && tomato > 0 && gruyere > 0) {
+            --dough;
+            --tomato;
+            --gruyere;
+            return true;
+        }
+    } else if (type == Pizza::Type::Regina) {
+        if (dough > 0 && tomato > 0 && gruyere > 0 && ham > 0 && mushrooms > 0) {
+            --dough;
+            --tomato;
+            --gruyere;
+            --ham;
+            --mushrooms;
+            return true;
+        }
+    } else if (type == Pizza::Type::Americana) {
+        if (dough > 0 && tomato > 0 && gruyere > 0 && steak > 0) {
+            --dough;
+            --tomato;
+            --gruyere;
+            --steak;
+            return true;
+
+        }
+    } else if (type == Pizza::Type::Fantasia) {
+        if (dough > 0 && tomato > 0 && eggplant > 0 && goat_cheese > 0 && chief_love > 0) {
+            --dough;
+            --tomato;
+            --eggplant;
+            --goat_cheese;
+            --chief_love;
+            return true;
+        }
+    }
+    return false;
+}
+
+File: src/pizza.cpp
+#include "../include/pizza.hpp"
+
+bool Pizza::operator==(const Pizza& other) const {
+    return this->type == other.type
+        && this->size == other.size
+        && this->ingredients == other.ingredients;
+}
+
+Pizza::Pizza(Type type, Size size) : type(type), size(size) {
+
+}
+
+File: src/kitchen.cpp
+#include "../include/kitchen.hpp"
+#include "../include/cook.hpp"
+
+
+void Kitchen::removePizza(const Pizza& pizza) {
+    std::lock_guard<std::mutex> lock(mtx);
+    auto it = std::find(pizzas.begin(), pizzas.end(), pizza);
+    if (it != pizzas.end()) {
+        pizzas.erase(it);
+    }
+
+}
+
+Kitchen::~Kitchen() {
+    mq_close(mqd);
+    for (auto& cook : cooks) {
+        cook->stop(pizzas);
+    }
+    for (auto& thread : cookThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+Kitchen::Kitchen(int numCooks, int _restockTime) : restockTime(_restockTime), ingredientsManager(std::make_unique<IngredientsManager>(_restockTime)) {
+    struct mq_attr attr;
+    attr.mq_flags = 0;
+    attr.mq_maxmsg = 10;
+    attr.mq_msgsize = sizeof(Message);
+    attr.mq_curmsgs = 0;
+
+
+    std::string queue_name = "/pizza_queue" + std::to_string(getpid());
+
+
+    mqd = mq_open(queue_name.c_str(), O_CREAT | O_RDWR, S_IRWXU, &attr);
+
+    for (int i = 0; i < numCooks; ++i) {
+        cooks.push_back(std::make_unique<Cook>());
+    }
+}
+
+void Kitchen::addOrder(Pizza& pizza, double cookingTimeMultiplier) {
+    std::lock_guard<std::mutex> lock(mtx);
+    pizzas.push_back(pizza);
+    for (auto& cook : cooks) {
+        if (!cook->isBusy()) {
+            cook->setBusy(true);
+            cookThreads.emplace_back(&Cook::cook, cook.get(), std::ref(pizzas), std::ref(*this), cookingTimeMultiplier);
+            cook->getConditionVariable().notify_one();
+            break;
+        }
+    }
+}
+
+void Kitchen::start(double cookingTimeMultiplier) {
+    while (true) {
+        Message msg;
+        ssize_t bytes_read;
+
+        do {
+            bytes_read = mq_receive(mqd, (char*)&msg, sizeof(Message), NULL);
+        } while ((bytes_read < 0) && (errno == EINTR));
+
+        if (bytes_read < 0) {
+            perror("mq_receive");
+            return;
+        }
+
+        for (int i = 0; i < msg.quantity; i++) {
+            Pizza pizza(msg.type, msg.size);
+            if(ingredientsManager->getIngredientsForPizza(msg.type)) {
+                addOrder(pizza, cookingTimeMultiplier);
+            } else {
+                std::cout << "Ingredients for Pizza " << static_cast<int>(msg.type) << " not available\n";
+            }
+        }
+    }
+}
+
+File: src/cook.cpp
+#include "../include/cook.hpp"
+#include "../include/kitchen.hpp"
+#include "../include/ingredientsManager.hpp"
+
+void Cook::cook(std::list<Pizza>& pizzas, Kitchen& kitchen, double cookingTimeMultiplier) {
+    while (!should_stop) {
+        Pizza* pizza = nullptr;
+        {
+            std::unique_lock<std::mutex> lock(kitchen.mtx);
+            if (pizzas.empty()) {
+                cv.wait(lock, [&]{ return !pizzas.empty() || should_stop; });
+                if (should_stop) {
+                    return;
+                }
+            }
+            pizza = &pizzas.front();
+        }
+        if (pizza != nullptr) {
+            if (kitchen.getIngredientsManager().getIngredientsForPizza(pizza->type)) {
+                int baseTime = 1000;
+                switch(pizza->type) {
+                    case Pizza::Type::Margarita:
+                        baseTime = 1000;
+                        break;
+                    case Pizza::Type::Regina:
+                        baseTime = 2000;
+                        break;
+                    case Pizza::Type::Americana:
+                        baseTime = 2000;
+                        break;
+                    case Pizza::Type::Fantasia:
+                        baseTime = 3000;
+                        break;
+                    default:
+                        std::cout << "Unknown pizza type!" << std::endl;
+                        return;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(baseTime * cookingTimeMultiplier)));
+                kitchen.removePizza(*pizza);
+                std::cout << "Pizza " << static_cast<int>(pizza->type) << " is ready!" << std::endl;
+                pizza = nullptr;
+            } else {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            }
+        } else {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }
+    }
+    is_busy = false;
+}
+
+bool Cook::isStopping() {
+    std::lock_guard<std::mutex> lock(stop_mtx);
+    return should_stop;
+}
+
+void Cook::stop(std::list<Pizza>& pizzas) {
+    std::lock_guard<std::mutex> lock(stop_mtx);
+    should_stop = true;
+
+}
+
+File: src/main.cpp
+#include "../include/reception.hpp"
+#include "../include/kitchen.hpp"
+#include <iostream>
+
+int main(int argc, char* argv[]) {
+    try {
+        if (argc != 4) {
+            std::cerr << "Usage: " << argv[0] << " <cooking_time_multiplier> <cooks_per_kitchen> <ingredient_restock_time>\n";
+            return 84;
+        }
+        double cookingTimeMultiplier = std::stod(argv[1]);
+        int cooksPerKitchen = std::stoi(argv[2]);
+        int ingredientRestockTime = std::stoi(argv[3]);
+        Reception reception(cooksPerKitchen, ingredientRestockTime, 7);
+        reception.start(cookingTimeMultiplier);
+        return 0;
+    } catch (const std::exception& ex) {
+        std::cerr << "Error: " << ex.what() << "\n";
+        return 84;
+    }
